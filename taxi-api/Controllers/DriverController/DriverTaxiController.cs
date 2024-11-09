@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace taxi_api.Controllers.DriverController
 {
-    [Route("api/[controller]")]
+    [Route("api/driver")]
     [ApiController]
     public class DriverTaxiController : ControllerBase
     {

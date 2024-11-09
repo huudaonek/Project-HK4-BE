@@ -26,7 +26,7 @@ using Twilio.Exceptions;
 
 namespace taxi_api.Controllers.DriverController
 {
-    [Route("api/[controller]")]
+    [Route("api/driver")]
     [ApiController]
     public class DriverController : ControllerBase
     {

@@ -2,6 +2,6 @@
 {
     public class CommissionUpdateDto
     {
-        public decimal Commission { get; set; }
+        public int Commission { get; set; }
     }
 }

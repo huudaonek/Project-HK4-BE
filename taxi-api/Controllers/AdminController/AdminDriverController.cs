@@ -149,18 +149,35 @@ namespace taxi_api.Controllers.AdminController
         [HttpPut("edit-commission/{driverId}")]
         public async Task<IActionResult> EditCommission(int driverId, [FromBody] CommissionUpdateDto commissionDto)
         {
-            var driver = await _context.Drivers.FindAsync(driverId);
-            if (driver == null)
+            // Kiểm tra xem giá trị Commission có nằm trong khoảng từ 0 đến 100 không
+            if (commissionDto.Commission < 0 || commissionDto.Commission > 100)
             {
-                return NotFound(new { code = CommonErrorCodes.NotFound, message = "Driver not found." });
+                return BadRequest(new { code = CommonErrorCodes.InvalidData, message = "Commission phải nằm trong khoảng từ 0 đến 100." });
             }
 
+            // Tìm tài xế theo Id
+            var driver = await _context.Drivers.FirstOrDefaultAsync(d => d.Id == driverId);
+            if (driver == null)
+            {
+                return NotFound(new { code = CommonErrorCodes.NotFound, message = "Không tìm thấy tài xế." });
+            }
+
+            // Cập nhật giá trị Commission
+            driver.Commission = commissionDto.Commission;
             driver.UpdatedAt = DateTime.Now;
 
-            await _context.SaveChangesAsync();
-
-            return Ok(new { code = CommonErrorCodes.Success, message = "Commission updated successfully.", data = driver });
+            try
+            {
+                // Lưu thay đổi vào cơ sở dữ liệu
+                await _context.SaveChangesAsync();
+                return Ok(new { code = CommonErrorCodes.Success, message = "Đã cập nhật Commission cho tài xế thành công.", data = new { driverId = driver.Id, newCommission = driver.Commission } });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { code = CommonErrorCodes.ServerError, message = "Đã xảy ra lỗi trong quá trình lưu dữ liệu." });
+            }
         }
+
         [HttpGet("get-all-taxis")]
         public async Task<IActionResult> GetAllTaxis()
         {

@@ -19,7 +19,6 @@ namespace taxi_api.Controllers.UserController
         {
             _context = context;
         }
-
         // GET api/user/search-booking?code=XG123456
         [HttpGet("search-booking")]
         public async Task<IActionResult> SearchBooking(string code)
@@ -42,9 +41,9 @@ namespace taxi_api.Controllers.UserController
 
             if (booking == null)
             {
-                return NotFound(new
+                return Ok(new
                 {
-                    code = CommonErrorCodes.NotFound,
+                    code = CommonErrorCodes.Success,
                     data = (object)null,
                     message = "No trip found with the entered code."
                 });
@@ -143,7 +142,7 @@ namespace taxi_api.Controllers.UserController
             {
                 response = new
                 {
-                    code = CommonErrorCodes.InvalidData,
+                    code = CommonErrorCodes.Success,
                     data = response.data,
                     message = "This trip does not have a driver."
                 };
@@ -151,7 +150,6 @@ namespace taxi_api.Controllers.UserController
 
             return Ok(response);
         }
-
         private string MaskPhoneNumber(string phoneNumber)
         {
             if (string.IsNullOrEmpty(phoneNumber) || phoneNumber.Length < 7)
@@ -164,11 +162,11 @@ namespace taxi_api.Controllers.UserController
         {
             if (string.IsNullOrEmpty(wardName))
             {
-                return BadRequest(new
+                return Ok(new
                 {
-                    code = CommonErrorCodes.InvalidData,
+                    code = CommonErrorCodes.Success,
                     data = (object)null,
-                    message = "Ward name is required."
+                    message = "Ward null ."
                 });
             }
 
@@ -261,7 +259,6 @@ namespace taxi_api.Controllers.UserController
                 });
             }
 
-            // Kiểm tra PickUpId và DropOffId, nếu không có thì lấy từ Config
             if (request.PickUpId == null)
             {
                 var pickupConfig = await _context.Configs

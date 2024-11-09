@@ -8,7 +8,7 @@ using taxi_api.Models;
 
 namespace taxi_api.Controllers.DriverController
 {
-    [Route("api/[controller]")]
+    [Route("api/driver")]
     [ApiController]
     public class DriverBookingController : ControllerBase
     {
@@ -114,7 +114,7 @@ namespace taxi_api.Controllers.DriverController
                         DropOffId = booking.Arival.DropOffId,
                         DropOffDetails = dropOffWard
                     },
-                    TaxiDetails = taxies.FirstOrDefault(t => t.Id == bd.TaxiId) // Lấy thông tin taxi
+                    TaxiDetails = taxies.FirstOrDefault(t => t.Id == bd.TaxiId)
                 };
             }));
 

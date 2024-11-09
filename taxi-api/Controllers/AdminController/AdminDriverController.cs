@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using taxi_api.DTO;
 using taxi_api.Models;
 
@@ -20,27 +21,41 @@ namespace taxi_api.Controllers.AdminController
         public IActionResult Index()
         {
             var drivers = _context.Drivers
-                 .Select(d => new
-                 {
-                     d.Id,
-                     d.Fullname,
-                     d.Phone,
-                     d.IsActive,
-                     d.Point,
-                     d.Commission,
-                     d.CreatedAt,
-                     d.UpdatedAt,
-                     d.DeletedAt
-                 })
-                 .ToList();
+                .Join(_context.Taxies.Where(t => t.InUse == true),
+                    driver => driver.Id, 
+                    taxi => taxi.DriverId,
+                    (driver, taxi) => new 
+                    {
+                        driver.Id,
+                        driver.Fullname,
+                        driver.Phone,
+                        driver.IsActive,
+                        driver.Point,
+                        driver.Commission,
+                        driver.CreatedAt,
+                        driver.UpdatedAt,
+                        driver.DeletedAt,
+                        TaxiInfo = new 
+                        {
+                            taxi.Name,
+                            taxi.LicensePlate,
+                            taxi.Seat,
+                            taxi.InUse,
+                            taxi.CreatedAt,
+                            taxi.UpdatedAt,
+                            taxi.DeletedAt
+                        }
+                    })
+                .ToList();
 
             return Ok(new
             {
                 code = CommonErrorCodes.Success,
                 data = drivers,
-                message = "List of all drivers retrieved successfully."
+                message = "List of all drivers with their taxis retrieved successfully."
             });
         }
+
         [HttpPost("activate/{driverId}")]
         public IActionResult ActivateDriver(int driverId)
         {
@@ -108,59 +123,28 @@ namespace taxi_api.Controllers.AdminController
             }
 
             var driver = _context.Drivers.FirstOrDefault(d => d.Id == driverId);
-            if (driver == null)
+            if (driver.DeletedAt == null)
             {
-                return NotFound(new
+                driver.DeletedAt = DateTime.UtcNow;
+                _context.SaveChanges();
+                return Ok(new
                 {
-                    code = CommonErrorCodes.NotFound,
+                    code = CommonErrorCodes.Success,
                     data = (object)null,
-                    message = "Driver not found."
+                    message = "Driver ban sucessfully."
                 });
             }
-
-            driver.DeletedAt = DateTime.UtcNow; 
-            _context.SaveChanges();
-
-            return Ok(new
+            else 
             {
-                code = CommonErrorCodes.Success,
-                data = new { driverId = driver.Id },
-                message = "Driver account deactivated successfully."
-            });
-        }
-        [HttpPost("UnBanDriver/{driverId}")]
-        public IActionResult UnBanDriver(int driverId)
-        {
-            if (driverId <= 0)
-            {
-                return BadRequest(new
+                driver.DeletedAt = null;
+                _context.SaveChanges();
+                return Ok(new
                 {
-                    code = CommonErrorCodes.InvalidData,
-                    data = (object)null,
-                    message = "Invalid request. Driver ID is required."
+                    code = CommonErrorCodes.Success,
+                    data = new { driverId = driver.Id },
+                    message = "Driver unban successfully."
                 });
             }
-
-            var driver = _context.Drivers.FirstOrDefault(d => d.Id == driverId);
-            if (driver == null)
-            {
-                return NotFound(new
-                {
-                    code = CommonErrorCodes.NotFound,
-                    data = (object)null,
-                    message = "Driver not found."
-                });
-            }
-
-            driver.DeletedAt = null;
-            _context.SaveChanges();
-
-            return Ok(new
-            {
-                code = CommonErrorCodes.Success,
-                data = new { driverId = driver.Id },
-                message = "Driver account Unban successfully."
-            });
         }
         [HttpPut("edit-commission/{driverId}")]
         public async Task<IActionResult> EditCommission(int driverId, [FromBody] CommissionUpdateDto commissionDto)
@@ -176,6 +160,34 @@ namespace taxi_api.Controllers.AdminController
             await _context.SaveChangesAsync();
 
             return Ok(new { code = CommonErrorCodes.Success, message = "Commission updated successfully.", data = driver });
+        }
+        [HttpGet("get-all-taxis")]
+        public async Task<IActionResult> GetAllTaxis()
+        {
+            var taxis = await _context.Taxies
+                .Join(_context.Drivers, // Join với bảng Drivers
+                    taxi => taxi.DriverId, // Liên kết DriverId của taxi
+                    driver => driver.Id,  // Liên kết với Id của driver
+                    (taxi, driver) => new // Tạo đối tượng kết quả
+                    {
+                        taxi.Id,
+                        taxi.Name,
+                        taxi.LicensePlate,
+                        taxi.Seat,
+                        taxi.InUse,
+                        taxi.CreatedAt,
+                        taxi.UpdatedAt,
+                        taxi.DeletedAt,
+                        Fullname = driver.Fullname // Lấy tên tài xế
+                    })
+                .ToListAsync(); // Dùng ToListAsync() để lấy dữ liệu bất đồng bộ
+
+            return Ok(new
+            {
+                code = CommonErrorCodes.Success,
+                data = taxis,
+                message = "List of all taxis retrieved successfully."
+            });
         }
     }
 }

@@ -28,7 +28,7 @@ namespace taxi_api.Helpers
             // Bước 1: Lấy danh sách tài xế có xe đang sử dụng và không trùng inviteId
             var drivers = await context.Drivers
                 .Include(d => d.Taxies)
-                .Where(d => d.Id != inviteId && d.Taxies.Any(t => t.InUse == true))
+                .Where(d => d.DeletedAt == null && d.Taxies.Any(t => t.InUse == true) && d.Id != inviteId) 
                 .ToListAsync();
 
             if (!drivers.Any())

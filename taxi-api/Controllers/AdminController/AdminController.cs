@@ -117,31 +117,7 @@ namespace taxi_api.Controllers.AdminController
                 },
             });
         }
-        [HttpGet("get-all-taxis")]
-        public async Task<IActionResult> GetAllTaxis()
-        {
-            var taxis = _context.Taxies
-                .Select(t => new
-                {
-                    t.Id,
-                    t.DriverId,
-                    t.Name,
-                    t.LicensePlate,
-                    t.Seat,
-                    t.InUse,
-                    t.CreatedAt,
-                    t.UpdatedAt,
-                    t.DeletedAt
-                })
-                .ToList();
-
-            return Ok(new
-            {
-                code = CommonErrorCodes.Success,
-                data = taxis,
-                message = "List of all taxis retrieved successfully."
-            });
-        }
+       
         [Authorize]
         [HttpGet("profile")]
         public async Task<IActionResult> GetProfile()

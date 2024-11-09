@@ -168,19 +168,6 @@ namespace taxi_api.Controllers.AdminController
                 };
                 await _context.Customers.AddAsync(customer);
             }
-            else if (request.CustomerId.HasValue)
-            {
-                customer = await _context.Customers.FindAsync(request.CustomerId);
-                if (customer == null)
-                {
-                    return BadRequest(new
-                    {
-                        code = CommonErrorCodes.InvalidData,
-                        data = (object)null,
-                        message = "Customer does not exist!"
-                    });
-                }
-            }
             else
             {
                 return BadRequest(new
@@ -263,24 +250,48 @@ namespace taxi_api.Controllers.AdminController
 
             decimal price = 0;
 
-            if (request.Types == "province")
-            {
-                // Kiểm tra DropOffId nằm trong bảng Districts để lấy thông tin ProvinceId
-                var district = await _context.Districts
-                    .FirstOrDefaultAsync(d => d.Id == request.DropOffId);
-
-                if (district != null)
+                if (request.Types == "province")
                 {
-                    // Lấy ProvinceId từ District
-                    var provinceId = district.ProvinceId;
+                    // Find the Ward based on DropOffId
+                    var ward = await _context.Wards
+                    .FirstOrDefaultAsync(w => w.Id == request.DropOffId);
 
-                    // Lấy giá từ bảng Provinces cho ProvinceId
-                    var province = await _context.Provinces
-                        .FirstOrDefaultAsync(p => p.Id == provinceId);
-
-                    if (province != null)
+                    if (ward != null)
                     {
-                        price = province.Price.Value;
+                        // Retrieve District based on ward's district_id
+                        var district = await _context.Districts
+                        .FirstOrDefaultAsync(d => d.Id == ward.DistrictId);
+
+                        if (district != null)
+                        {
+                            // Retrieve Province based on district's ProvinceId
+                            var province = await _context.Provinces
+                            .FirstOrDefaultAsync(p => p.Id == district.ProvinceId);
+
+                            if (province != null)
+                            {
+                                // Assign the province price
+                                price = province.Price.Value;
+                            }
+                            else
+                            {
+                                return BadRequest(new
+                                {
+                                    code = CommonErrorCodes.InvalidData,
+                                    data = (object)null,
+                                    message = "Province not found for the selected district."
+                                });
+                            }
+                        }
+                        else
+                        {
+                            return BadRequest(new
+                            {
+                                code = CommonErrorCodes.InvalidData,
+                                data = (object)null,
+                                message = "District not found for the selected ward."
+                            });
+                        }
                     }
                     else
                     {
@@ -288,20 +299,10 @@ namespace taxi_api.Controllers.AdminController
                         {
                             code = CommonErrorCodes.InvalidData,
                             data = (object)null,
-                            message = "Province not found for the selected district."
+                            message = "Ward not found for the selected drop-off point."
                         });
                     }
                 }
-                else
-                {
-                    return BadRequest(new
-                    {
-                        code = CommonErrorCodes.InvalidData,
-                        data = (object)null,
-                        message = "District not found for the selected drop-off point."
-                    });
-                }
-            }
 
             else if (request.Types == "airport")
             {

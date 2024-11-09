@@ -185,13 +185,15 @@ namespace taxi_api.Controllers.DriverController
         [HttpPost("create-booking")]
         public async Task<IActionResult> CreateBooking([FromBody] BookingRequestDto request)
         {
+            // Validate the request
             if (request == null)
-                return BadRequest(new { code = CommonErrorCodes.InvalidData, message = "Invalid data." });
-
-            var driverIdClaim = User.Claims.FirstOrDefault(c => c.Type == "DriverId")?.Value;
-            if (string.IsNullOrEmpty(driverIdClaim) || !int.TryParse(driverIdClaim, out int driverId))
             {
-                return Unauthorized(new { code = CommonErrorCodes.Unauthorized, message = "Invalid driver." });
+                return BadRequest(new
+                {
+                    code = CommonErrorCodes.InvalidData,
+                    data = (object)null,
+                    message = "Invalid data."
+                });
             }
 
             Customer customer;
@@ -204,19 +206,6 @@ namespace taxi_api.Controllers.DriverController
                     Phone = request.Phone
                 };
                 await _context.Customers.AddAsync(customer);
-            }
-            else if (request.CustomerId.HasValue)
-            {
-                customer = await _context.Customers.FindAsync(request.CustomerId);
-                if (customer == null)
-                {
-                    return BadRequest(new
-                    {
-                        code = CommonErrorCodes.InvalidData,
-                        data = (object)null,
-                        message = "Customer does not exist!"
-                    });
-                }
             }
             else
             {
@@ -302,22 +291,36 @@ namespace taxi_api.Controllers.DriverController
 
             if (request.Types == "province")
             {
-                // Kiểm tra DropOffId nằm trong bảng Districts để lấy thông tin ProvinceId
-                var district = await _context.Districts
-                    .FirstOrDefaultAsync(d => d.Id == request.DropOffId);
+                // Find the Ward based on DropOffId
+                var ward = await _context.Wards
+                .FirstOrDefaultAsync(w => w.Id == request.DropOffId);
 
-                if (district != null)
+                if (ward != null)
                 {
-                    // Lấy ProvinceId từ District
-                    var provinceId = district.ProvinceId;
+                    // Retrieve District based on ward's district_id
+                    var district = await _context.Districts
+                    .FirstOrDefaultAsync(d => d.Id == ward.DistrictId);
 
-                    // Lấy giá từ bảng Provinces cho ProvinceId
-                    var province = await _context.Provinces
-                        .FirstOrDefaultAsync(p => p.Id == provinceId);
-
-                    if (province != null)
+                    if (district != null)
                     {
-                        price = province.Price.Value;
+                        // Retrieve Province based on district's ProvinceId
+                        var province = await _context.Provinces
+                        .FirstOrDefaultAsync(p => p.Id == district.ProvinceId);
+
+                        if (province != null)
+                        {
+                            // Assign the province price
+                            price = province.Price.Value;
+                        }
+                        else
+                        {
+                            return BadRequest(new
+                            {
+                                code = CommonErrorCodes.InvalidData,
+                                data = (object)null,
+                                message = "Province not found for the selected district."
+                            });
+                        }
                     }
                     else
                     {
@@ -325,7 +328,7 @@ namespace taxi_api.Controllers.DriverController
                         {
                             code = CommonErrorCodes.InvalidData,
                             data = (object)null,
-                            message = "Province not found for the selected district."
+                            message = "District not found for the selected ward."
                         });
                     }
                 }
@@ -335,7 +338,7 @@ namespace taxi_api.Controllers.DriverController
                     {
                         code = CommonErrorCodes.InvalidData,
                         data = (object)null,
-                        message = "District not found for the selected drop-off point."
+                        message = "Ward not found for the selected drop-off point."
                     });
                 }
             }
@@ -391,7 +394,7 @@ namespace taxi_api.Controllers.DriverController
                 Price = arival.Price,
                 HasFull = request.HasFull,
                 Status = "1",
-                InviteId = driverId,
+                InviteId = 0
             };
 
             await _context.Bookings.AddAsync(booking);
@@ -407,12 +410,40 @@ namespace taxi_api.Controllers.DriverController
                     message = "Wait for the driver to accept this trip!"
                 });
             }
+            var driverPhoneNumber = taxi.Phone;
+            if (driverPhoneNumber.StartsWith("0"))
+            {
+                driverPhoneNumber = "+84" + driverPhoneNumber.Substring(1);
+            }
+
+            try
+            {
+                // Khởi tạo Twilio Client
+                TwilioClient.Init(configuation["Twilio:AccountSid"], configuation["Twilio:AuthToken"]);
+
+                // Gửi SMS với mã booking đến tài xế
+                var message = MessageResource.Create(
+                    body: "Your booking code is: {booking.Code}.",
+                    from: new PhoneNumber(configuation["Twilio:PhoneNumber"]),
+                    to: new PhoneNumber(driverPhoneNumber)
+                );
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    code = CommonErrorCodes.ServerError,
+                    message = "Failed to send SMS.",
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
 
             return Ok(new
             {
                 code = CommonErrorCodes.Success,
                 data = new { bookingId = booking.Id },
-                message = "Trip created successfully!"
+                message = "Trip created successfully and SMS sent to the driver!"
             });
         }
         [Authorize]

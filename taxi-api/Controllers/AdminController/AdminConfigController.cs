@@ -178,7 +178,7 @@ namespace taxi_api.Controllers.AdminController
             }
 
             var pickupIdConfig = _context.Configs
-                .FirstOrDefault(c => c.ConfigKey == "pickup_id");
+                .FirstOrDefault(c => c.ConfigKey == "default_arival_pickup");
 
             var defaultArrivalPickupConfig = _context.Configs
                 .FirstOrDefault(c => c.ConfigKey == "default_arival_pickup");
@@ -235,7 +235,7 @@ namespace taxi_api.Controllers.AdminController
             }
 
             var dropoffIdConfig = _context.Configs
-                .FirstOrDefault(c => c.ConfigKey == "dropoff_id");
+                .FirstOrDefault(c => c.ConfigKey == "default_arival_dropoff");
 
             var defaultArrivalDropoffConfig = _context.Configs
                 .FirstOrDefault(c => c.ConfigKey == "default_arival_dropoff");
